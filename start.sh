@@ -19,7 +19,7 @@ done
 
 if [ ! -f .env ]; then
   cp sec/.env.example .env
-  echo "No .env found, created one from .env.example (local storage until you add credentials)."
+  echo "No .env found, created one from sec/.env.example."
 fi
 PORT="${PORT:-$(grep -E '^PORT=' .env | cut -d= -f2)}"; PORT="${PORT:-5000}"; export PORT
 URL="http://localhost:$PORT"

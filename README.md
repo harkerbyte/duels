@@ -22,8 +22,9 @@ On a laptop the chat and move list dock beside the board, and the layout adapts 
 ## Quick start
 
 ```bash
-git clone <your-repo-url> heaven-duels
-cd heaven-duels
+git clone https://github.com/harkerbyte/duels
+cd duels
+chmod 700 ./start.sh
 ./start.sh
 ```
 
@@ -31,7 +32,7 @@ cd heaven-duels
 
 | Command | What it does |
 | --- | --- |
-| `./start.sh` | Uses shadeDB if `.env` has credentials, otherwise local storage |
+| `./start.sh` | Uses shadeDB if `.env` has credentials, otherwise uses pre-built .env.example |
 | `./start.sh --offline` | Forces local storage. No network or account needed |
 | `./start.sh --lan` | Also lets other devices on your network join (prints your address) |
 | `docker compose up --build` | Runs it in a container (copy `.env.example` to `.env` first) |

@@ -1,19 +1,23 @@
 # Heaven Duels
 
-A chess app, a Snakes & Ladders app and a fighting game. Two players, one shared database, no accounts, no websockets, no server-sent events, no push of any kind.
+A chess app, a Snakes & Ladders app and two fighting games: a turn-based duel and a real-time arcade brawler. Two players, one shared database, no accounts, no websockets, no server-sent events, no push of any kind.
 
 Every move is a database write. The other player's client asks the database what changed, about once a second. The counter in the game ("Asked the database N times") shows how often it asked, and the board still feels live.
 
+Even the real-time brawler, Heaven Brawl, runs this way: each player writes their own small record about twenty times a second and reads the other's. That is about as far as polling can be pushed, so the game checks your connection before every match and lets you decide whether to play.
+
 **Built on [shadeDB](https://shadedb.duckdns.org)** by [@shade_ofc](https://x.com/shade_ofc). It is the only channel between the players. Moves, chat, reactions, rematch requests, clans and who is online are all records in shadeDB, so there is nothing else to run: no socket server, no message broker, no sessions to keep alive. Close your tab, come back tomorrow, and your game is still there.
 
-![Heaven Duels on a phone: chess, the fighting game, clan chat and the speed test, in black and white](docs/screenshot.jpg)
+![Heaven Duels on a phone: chess, Heaven Brawl, clan chat and the speed test, in black and white](docs/screenshot.jpg)
 
 <p align="center">
   <img src="docs/lobby.png" width="23%" alt="Lobby">
   <img src="docs/fight.png" width="23%" alt="Heaven Fighters">
+  <img src="docs/brawl-gate.png" width="23%" alt="Heaven Brawl connection check">
   <img src="docs/clans.png" width="23%" alt="Clan chat">
-  <img src="docs/speed.png" width="23%" alt="Speed test">
 </p>
+
+![Heaven Brawl in wide mode on a phone held sideways, with on-screen controls](docs/brawl-wide.png)
 
 On a laptop the chat and move list dock beside the board, and the layout adapts from a small phone to a wide monitor:
 
@@ -28,14 +32,25 @@ chmod 700 ./start.sh
 ./start.sh
 ```
 
-`start.sh` creates a virtualenv, installs the two dependencies, starts the server and opens your browser at `http://localhost:5000`. You need Python 3.10+ on Linux, macOS, Android (Termux), or Windows via WSL or Git Bash.
+`start.sh` creates a virtualenv, installs the two dependencies, starts the server and opens your browser at `http://localhost:5000`. The first time, it also writes a ready-made `.env` that points at the **shared demo database**, so the game works straight after cloning with nothing to sign up for. You need Python 3.10+ on Linux, macOS, Android (Termux), or Windows via WSL or Git Bash.
 
 | Command | What it does |
 | --- | --- |
-| `./start.sh` | Uses shadeDB if `.env` has credentials, otherwise uses pre-built .env.example |
-| `./start.sh --offline` | Forces local storage. No network or account needed |
+| `./start.sh` | Plays on the shared demo database, writing `.env` for you the first time |
+| `./start.sh --custom` | Uses **your own `.env`** (your own shadeDB). The script never writes to it |
+| `./start.sh --offline` | Local storage only. No network or database needed |
 | `./start.sh --lan` | Also lets other devices on your network join (prints your address) |
-| `docker compose up --build` | Runs it in a container (copy `.env.example` to `.env` first) |
+| `./start.sh --demo` | Replaces `.env` with the demo one (your old one is kept as `.env.bak`) |
+| `./start.sh --write-env` | Writes the demo `.env` and stops. Handy before `docker compose up` |
+| `docker compose up --build` | Runs it in a container (it needs a `.env`: run `./start.sh --write-env`, or copy `.env.example` and fill in your own) |
+
+### About the demo database
+
+The credentials for the demo database are written into `start.sh` on purpose, so the game works out of the box. That means **they are public**: anyone with this repository can read, write and delete in that database. Rooms, clans and chat there are not private, so do not put anything you care about in them. The game tells you when you are on it.
+
+**Want your own?** Make an instance and a partition in the [shadeDB dashboard](https://shadedb.duckdns.org), copy `.env.example` to `.env`, fill it in, and start with `./start.sh --custom`. The script will not touch your file. If you run `./start.sh` with a `.env` of your own and no flag, it stops and asks you to choose, rather than quietly using the demo database or overwriting yours.
+
+Publishing your own fork with its own demo? Replace the `DEMO_*` values at the top of `start.sh` with a dedicated, disposable token that can only reach one partition, and rotate it if it is ever abused.
 
 ## Playing
 
@@ -60,7 +75,7 @@ The classic 10x10 board, with stairways and serpents. Roll with the server's dic
 
 ### Heaven Fighters
 
-A duel where both players choose at the same time. First each picks a fighter, without seeing the other's choice. Then every round both lock in a move in secret, and the round resolves when the second move lands. The database never has to deliver anything faster than a person can think, which is why a fighting game works with no real-time channel at all. Your opponent's pending move and pick never leave the server until they are revealed.
+A turn-based duel where both players choose at the same time. First each picks a fighter, without seeing the other's choice. Then every round both lock in a move in secret, and the round resolves when the second move lands. The database never has to deliver anything faster than a person can think, which is why a fighting game works with no real-time channel at all. Your opponent's pending move and pick never leave the server until they are revealed.
 
 | Fighter | HP | MP | Ability |
 | --- | --- | --- | --- |
@@ -79,6 +94,24 @@ A duel where both players choose at the same time. First each picks a fighter, w
 | Judgment | 40 damage that ignores guard. Needs 5 Grace |
 
 Grace grows by 1 each round and by 1 more when you take damage. Everyone regenerates 6 MP a round. All the numbers live at the top of `games/fight.py`.
+
+### Heaven Brawl
+
+A real-time arcade fighter in the spirit of the classic 2D ones. Pick a fighter, win two rounds of 45 seconds (or have more health when the clock runs out) and the match is yours. It is the most demanding thing you can do over a database, so it is **opt-in at every step**:
+
+- **It checks your connection first.** Before each match both players run a short test of real round trips. It tells you in plain words how far behind your opponent's moves will arrive and whether that comes from your network or from the database, and you choose **Play**, **Play anyway** (when it expects lag) or leave. Both players must tap ready before the countdown starts, so nobody is pushed into a laggy fight. **Run the full speed test** inside the check shows the whole breakdown.
+- **On-screen controls.** A d-pad (left, right, jump) and four buttons (Punch, Kick, Special, Block), with multi-touch so you can move and attack at the same time. On a keyboard use the arrows or WASD, J K L (or Z X C), and Down to block.
+- **Wide mode.** Tap **Wide** (or pick it in the menu) and the arena fills the screen with the controls floating over the corners. It is meant for a phone turned sideways in full screen, and switches on by itself when you hold the phone in landscape.
+- **Practice against the computer** needs no network at all.
+
+| Fighter | HP | Special |
+| --- | --- | --- |
+| Paladin | 130 | Shield Bash: a heavy lunge |
+| Seraph | 100 | Fireball: a projectile |
+| Valkyrie | 110 | Spear Thrust: the longest reach |
+| Cherub | 95 | Dash Strike: fast and slippery |
+
+Punch is quick and short, Kick is slower and hits harder, Special costs energy (which refills over time), and Block takes most of the damage from a hit but never lets chip damage finish you off.
 
 ## Clans
 
@@ -128,13 +161,19 @@ It writes to one scratch record, `hd_bench`, in your partition. In offline mode 
 - Caching, cache invalidation, scaling, replication and access control are all shadeDB's job. The game server adds no cache of its own by default, so each poll is a real read and the counter in the game counts real questions put to the database.
 - With `--offline` the same flow runs against a local file instead of shadeDB.
 
+### Real-time play (Heaven Brawl)
+
+Each player's device simulates their own fighter, so your controls answer instantly. As often as the link allows (up to about every 40 ms) it sends the fighter's position and state to the server, which writes it to that player's own shadeDB record and, in the same request, reads the opponent's record. Your opponent is drawn a fraction of a second in the past and smoothed between their updates, which hides the gaps. The attacker's device decides when a hit connects and the defender's device decides what it does to them (a block gets a small grace to allow for lag), so nobody waits on a referee. The host's device keeps the round clock, measured against the server's clock so both screens count down together.
+
+Expect a tenth to a quarter of a second between their move and your screen on a good connection, which is exactly what the connection check reports. It is a friendly game, not a tournament one: a modified client could cheat.
+
 ### Staying connected
 
 The page keeps working through a bad connection. If a request fails it retries in the background with a growing delay, shows **Live**, **Reconnecting** or **Offline** beside the room name, and refreshes the instant you come back online or return to the tab. Nothing is lost, because the game lives in the database. When the server ships a newer version of the page, open tabs refresh themselves.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and fill it in. Create an instance and a partition (the game uses `duelers`) in the [shadeDB dashboard](https://shadedb.duckdns.org).
+By default `start.sh` writes `.env` for you, pointing at the shared demo database. To use your own database, create an instance and a partition (the game uses `duelers`) in the [shadeDB dashboard](https://shadedb.duckdns.org), copy `.env.example` to `.env`, fill it in, and run `./start.sh --custom`.
 
 | Variable | Meaning |
 | --- | --- |
@@ -150,7 +189,7 @@ Copy `.env.example` to `.env` and fill it in. Create an instance and a partition
 
 Mark the `room` field as **unique** in your partition. Creating a room or clan then fails cleanly if two people pick the same name at once, and it guarantees one record per room. `python scripts/check_db.py` tells you whether it is set.
 
-**Keep `.env` private.** It is in `.gitignore`, and the tokens are only ever used by `store.py`. If a token has been shared or committed, delete that cluster in the dashboard and create a new one.
+**Keep your own `.env` private.** It is in `.gitignore`, and the tokens are only ever used by `store.py`. If a token of yours has been shared or committed, delete that cluster in the dashboard and create a new one. (The demo credentials in `start.sh` are the exception: they are public by design, see above.)
 
 ## Offline and online
 
@@ -161,6 +200,7 @@ To let friends on other networks play, run the server where they can reach it (a
 
 ## Troubleshooting
 
+- **Heaven Brawl feels laggy.** The connection check before the match says how much. Run the **Speed** tab to see whether the network or the database is slow. A closer router, fewer other apps, or running the game server near your database all help.
 - **It feels laggy.** Open the **Speed** tab. It tells you whether the time goes to the network, to shadeDB, or to your link to the game server.
 - **The owner does not see a joiner, or the joiner is kicked out a moment after joining.** The server was reading an older copy of the room from shadeDB. That happens when `room` is not a unique field (two records for one room) or when a read lags behind a write. As a safety net the server prefers the newest copy it wrote and writes it back, and it logs `WARNING: N records share room=...` or `stale read for ...` when that happens. Run `python scripts/check_db.py` and mark `room` as unique if it says it is not.
 - **"The database said ERR_..."**: the message shows shadeDB's error code. `ERR_PARTITION_NOT_EXIST` means the partition in `.env` does not exist, `ERR_MAINTENANCE_ACTIVE` and `ERR_INGESTION_PAUSED` mean maintenance is on, and `HTTP_403` means a token is wrong or expired.
@@ -176,6 +216,9 @@ store.py            shadeDB client (persistent connections) and the local file s
 games/chess.py      chess engine and computer opponent
 games/snakes.py     Snakes & Ladders rules
 games/fight.py      Heaven Fighters rules and computer opponent
+games/brawl.py      Heaven Brawl: fighter picks and the match result
+realtime.py         per-player sync records for Heaven Brawl
+static/brawl.js     the Brawl engine, controls and connection check (loaded on demand)
 static/index.html   the whole front end (no build step)
 static/fonts/       Inter and Bricolage Grotesque, bundled so it looks the same offline
 static/sw.js, manifest.webmanifest, icons/   install-as-app and offline shell
@@ -192,6 +235,7 @@ start.sh            one-command launcher
 | Rooms | `POST /api/create` `join` `move` `resign` `draw` `chat` `emote` `rematch` `claim` `leave`, `GET /api/room/<key>` |
 | Clans | `POST /api/clan/create` `join` `chat` `leave` `disband`, `GET /api/clan/<cable id>` |
 | Speed | `GET /api/ping`, `GET /api/bench/blob`, `POST /api/bench/run` |
+| Real-time | `POST /api/brawl/sync` |
 | Other | `GET /api/meta` |
 
 ## Testing

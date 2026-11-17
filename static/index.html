@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Heaven Duels">
 <title>Heaven Duels</title>
-<meta name="description" content="Chess, Snakes &amp; Ladders and a fighting game for two players on one shared database. No accounts, no websockets.">
+<meta name="description" content="Chess, Snakes &amp; Ladders and two fighting games for two players on one shared database. No accounts, no websockets.">
 <meta name="author" content="shade_ofc">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
@@ -233,6 +233,10 @@ h1{margin:20px 0 8px;font:700 clamp(32px,8.5vw,44px)/1.04 var(--display);letter-
 .row:hover{border-color:var(--ink)}.row b{display:block;font-weight:600}.row small{color:var(--muted);font-size:13px}.row .go{margin-left:auto;color:var(--muted);font-size:14px}
 #cl-id{text-transform:uppercase;letter-spacing:.08em}
 /* ---- heaven fighters ---- */
+#brawlview{position:absolute;inset:0}
+/* wide mode in a Brawl match: the arena takes the whole screen and the controls float over it */
+body.brawl-wide .dock{display:none!important}
+body.brawl-wide .stage{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);grid-template-areas:"board";max-width:none}
 .fightview{position:absolute;top:0;bottom:0;left:50%;width:min(calc(100% - 16px),560px);transform:translateX(-50%);display:flex;flex-direction:column;gap:10px;overflow:auto;padding:2px 0}
 .fcard{flex:none;padding:12px 14px;border:1px solid var(--line);border-radius:16px}.fcard.me{border-color:var(--ink)}
 .fhead{display:flex;align-items:center;gap:10px}
@@ -288,13 +292,14 @@ h1{margin:20px 0 8px;font:700 clamp(32px,8.5vw,44px)/1.04 var(--display);letter-
     <button class="icon" id="l-theme" data-ico="theme" aria-label="Change theme"></button>
     <button class="icon" id="l-fs" data-ico="fs" aria-label="Full screen"></button></div>
   <div class="lobbybody"><div class="lobbybox">
-    <h1>Three games.<br>Two players.</h1>
+    <h1>Four games.<br>Two players.</h1>
     <p class="tag">One shared database. No accounts, no sockets.</p>
     <p id="boot" hidden></p>
     <div class="seg c3 nav" id="nav"><button data-pane="play" aria-pressed="true">Play</button><button data-pane="clans" aria-pressed="false">Clans</button><button data-pane="speed" aria-pressed="false">Speed</button></div>
     <div id="pane-play">
     <div class="seg c3" style="margin-top:18px"><button id="m-create" aria-pressed="true">Host</button><button id="m-join" aria-pressed="false">Join</button><button id="m-solo" aria-pressed="false">Practice</button></div>
-    <div id="gamerow"><label>Game</label><div class="games" id="games"></div></div>
+    <div id="gamerow"><label>Game</label><div class="games" id="games"></div>
+      <p class="note hidden" id="gamenote" style="text-align:left;margin:10px 2px 0">Real-time action over the database. It needs a steady connection, so we check yours before each match and you decide whether to play.</p></div>
     <div id="colorrow"><label>Your colour</label><div class="seg c3" id="colors"><button data-c="white" aria-pressed="true">White</button><button data-c="black" aria-pressed="false">Black</button><button data-c="random" aria-pressed="false">Random</button></div></div>
     <label for="room" id="rl">Room name</label>
     <div class="inrow"><input id="room" maxlength="24" placeholder="Pearly Gates" autocomplete="off" autocapitalize="words"><button class="icon" id="rand" type="button" title="Suggest a name" aria-label="Suggest a room name" data-ico="dice"></button></div>
@@ -327,6 +332,7 @@ h1{margin:20px 0 8px;font:700 clamp(32px,8.5vw,44px)/1.04 var(--display);letter-
       <div id="sp-out"></div>
     </div>
     <p class="note"><span class="badge" id="backend"><i></i><span>Connecting…</span></span></p>
+    <p class="note hidden" id="demonote">You are on the shared demo database, so rooms and chat here are public. Run <b>./start.sh --custom</b> to use your own.</p>
     <p class="note">Built on <a href="https://shadedb.duckdns.org" target="_blank" rel="noopener">shadeDB</a> by <a href="https://x.com/shade_ofc" target="_blank" rel="noopener">@shade_ofc</a> · <span id="ver"></span></p>
   </div></div>
 </section>
@@ -347,6 +353,7 @@ h1{margin:20px 0 8px;font:700 clamp(32px,8.5vw,44px)/1.04 var(--display);letter-
           <div class="promo hidden" id="promo"><div class="box"><span>Promote to</span><div class="btns" id="promobtns"></div></div></div></div>
         <div class="fit sfit hidden" id="snakeview"><div id="sboard"></div><div class="tok p1" id="tok-p1"></div><div class="tok p2" id="tok-p2"></div><span class="startlbl">START</span></div>
         <div class="fightview hidden" id="fightview"></div>
+        <div class="brawlview hidden" id="brawlview"></div>
         <div class="ov hidden" id="ov"></div>
         <div id="floaters"></div>
       </div>
@@ -414,7 +421,7 @@ const ICO={
   share:'<path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/>',leave:'<path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"/>',install:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
   close:'<path d="M6 6l12 12M18 6L6 18"/>',dice:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.500 8.500h.01M15.500 8.500h.01M12 12h.01M8.500 15.500h.01M15.500 15.500h.01"/>',
   ladder:'<path d="M7 3v18M17 3v18M7 7h10M7 12h10M7 17h10"/>',
-  fight:'<path d="M5 19L17 7M14 4h5v5M19 19L7 7M10 4H5v5"/>',back:'<path d="M15 5l-7 7 7 7"/>',
+  fight:'<path d="M5 19L17 7M14 4h5v5M19 19L7 7M10 4H5v5"/>',brawl:'<path d="M13 2L5 14h6l-1 8 8-12h-6z"/>',back:'<path d="M15 5l-7 7 7 7"/>',
   people:'<circle cx="9" cy="9" r="3"/><path d="M3 19c0-3.500 2.700-5.500 6-5.500s6 2 6 5.500M16 6.500a3 3 0 0 1 0 5.500M17 14c2.500.5 4 2.200 4 5"/>',
   paladin:'<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/>',seraph:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 3-6 1 2 2 2 2-4z"/>',
   valkyrie:'<path d="M5 19L19 5M13 5h6v6M5 19l3-1M5 19l1-3"/>',cherub:'<path d="M19 5c-8 0-13 4-13 13M19 5c0 8-4 13-13 13M6 18l5-5"/>'};
@@ -474,7 +481,7 @@ async function boot(){
   catch(e){$("#boot").hidden=false;$("#boot").textContent="Connecting to the server… retrying in the background.";
     $("#backend span").textContent="Connecting…";setTimeout(boot,Math.min(1500*(++bootFails),8000));return}
   $("#boot").hidden=true;$("#backend").classList.toggle("off",!META.online);
-  $("#backend span").textContent=META.online?"Online · shadeDB":"Offline mode · local storage";$("#ver").textContent="v"+META.version;
+  $("#backend span").textContent=META.online?(META.demo?"Online · shared demo database":"Online · shadeDB"):"Offline mode · local storage";$("#demonote").classList.toggle("hidden",!META.demo);$("#ver").textContent="v"+META.version;
   if(!inited){inited=true;initUI();if(sess)start();else restoreClan();setInterval(checkBuild,20000)}}
 async function checkBuild(){
   if(reloading||document.hidden||!META)return;
@@ -488,7 +495,7 @@ const ADJ=["Golden","Silver","Quiet","Bright","Velvet","Starlit","Amber","Marble
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function initUI(){
   if(PREF.game&&META.games[PREF.game])game=PREF.game;if(PREF.color)color=PREF.color;if(PREF.name)$("#name").value=PREF.name;if(PREF.del===false)$("#delroom").checked=false;$("#cl-nick").value=PREF.name||"";
-  $("#games").innerHTML=Object.entries(META.games).map(([k,g])=>`<button class="gcard" data-g="${k}" aria-pressed="${k===game}"><span class="ico">${k==="chess"?"♞"+VS:`<span data-ico="${k==="fight"?"fight":"ladder"}"></span>`}</span><b>${esc(g.title)}</b><small>${esc(g.blurb)}</small></button>`).join("");
+  $("#games").innerHTML=Object.entries(META.games).map(([k,g])=>`<button class="gcard" data-g="${k}" aria-pressed="${k===game}"><span class="ico">${k==="chess"?"♞"+VS:`<span data-ico="${k==="fight"?"fight":k==="brawl"?"brawl":"ladder"}"></span>`}</span><b>${esc(g.title)}</b><small>${esc(g.blurb)}</small></button>`).join("");
   icons($("#games"));
   $$(".gcard").forEach(b=>b.onclick=()=>{game=b.dataset.g;$$(".gcard").forEach(x=>x.setAttribute("aria-pressed",x===b));syncColor()});
   $("#tray").innerHTML=META.emotes.map(e=>`<button aria-label="Send ${e}">${e}</button>`).join("");
@@ -502,7 +509,7 @@ function setMode(m){mode=m;
   $("#rl").textContent=m==="solo"?"Room name (optional)":"Room name";
   $("#pwl").textContent=m==="join"?"Room password (if it has one)":"Password (optional)";
   $("#pwrow").classList.toggle("hidden",m==="solo");$("#gamerow").classList.toggle("hidden",m==="join");$("#rand").classList.toggle("hidden",m==="join");$("#delrow").classList.toggle("hidden",m==="join");syncColor()}
-function syncColor(){$("#colorrow").classList.toggle("hidden",!(game==="chess"&&mode!=="join"))}
+function syncColor(){$("#colorrow").classList.toggle("hidden",!(game==="chess"&&mode!=="join"));$("#gamenote").classList.toggle("hidden",!(game==="brawl"&&mode!=="join"))}
 for(const k of ["create","join","solo"])$("#m-"+k).onclick=()=>setMode(k);
 $$("#colors button").forEach(b=>b.onclick=()=>{color=b.dataset.c;$$("#colors button").forEach(x=>x.setAttribute("aria-pressed",x===b))});
 $("#rand").onclick=()=>{$("#room").value=`${pick(ADJ)} ${pick(NOUN)} ${10+Math.floor(Math.random()*90)}`;$("#room").focus()};
@@ -524,7 +531,7 @@ $("#chat-btn").onclick=()=>openPanel("chat");$("#panel-close").onclick=closeLaye
 $$("#tabs button").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
 addEventListener("keydown",e=>{if(e.key==="Escape")closeLayers()});
 $("#menu-btn").onclick=openMenu;
-function leaveRoom(){clearTimeout(timer);closeLayers();try{wl&&wl.release()}catch(e){}
+function leaveRoom(){clearTimeout(timer);closeLayers();if(window.Brawl)Brawl.stop();document.body.classList.remove("brawl-wide");try{wl&&wl.release()}catch(e){}
   if(sess&&(loadJSON(localStorage.getItem("heaven-duels"))||{}).key===sess.key)localStorage.removeItem("heaven-duels");
   sess=null;sessionStorage.removeItem("heaven-duels");boardGame=null;V=null;lastChatI=null;lastReact=null;readUpTo=0;updateTitle();
   $("#arena").classList.add("hidden");$("#lobby").classList.remove("hidden")}
@@ -532,11 +539,13 @@ function openMenu(){
   const items=[];
   if(V&&!V.vs_bot)items.push(["share","Invite a friend",shareInvite]);
   if(V&&V.game==="chess")items.push(["flip","Flip board",()=>{flipped=!flipped;render(V)}]);
+  if(V&&V.game==="brawl"&&V.state.phase==="fight"&&window.Brawl)items.push(["fs",Brawl.isWide()?"Compact view":"Wide view",()=>Brawl.toggleWide()]);
   items.push([soundOn?"sound":"mute",soundOn?"Sound: on":"Sound: off",()=>{soundOn=!soundOn;localStorage.setItem("hd-sound",soundOn?"1":"0");if(soundOn)sfx.move()}]);
   items.push(["theme","Theme: "+themePref,cycleTheme]);
   if(!standalone())items.push([fsEl()?"fsx":"fs",fsEl()?"Exit full screen":"Full screen",toggleFS]);
   if(installEvt)items.push(["install","Install app",()=>{installEvt.prompt();installEvt=null}]);
   if(V&&!V.vs_bot)loadClans().slice(0,3).forEach(c=>items.push(["people","Invite "+c.name,()=>inviteClan(c)]));
+  if(V&&V.status==="active")items.push(["close","Resign",()=>{if(confirm("Resign this game?"))act("/api/resign")}]);
   items.push(["leave",V&&V.vs_bot?"Leave game":V&&V.host&&V.delete_on_leave?"Leave and delete room":"Leave room",leaveAndMaybeDelete]);
   $("#menu").innerHTML=`<div class="grab"></div>`+items.map(([ic,t],i)=>`<button class="mi" data-i="${i}"><span data-ico="${ic}"></span>${esc(t)}</button>`).join("")+
     `<p class="note">Built on <a href="https://shadedb.duckdns.org" target="_blank" rel="noopener">shadeDB</a> by <a href="https://x.com/shade_ofc" target="_blank" rel="noopener">@shade_ofc</a></p>`;
@@ -616,18 +625,18 @@ function render(v){
   $("#score").textContent=`${v.score[v.you]} – ${v.score[v.you==="p1"?"p2":"p1"]}`;
   const opp=v.you==="p1"?"p2":"p1",done=v.status==="done",active=v.status==="active";
   $("#chessview").classList.toggle("hidden",v.game!=="chess");$("#snakeview").classList.toggle("hidden",v.game!=="snakes");
-  const fighting=v.game==="fight";$("#fightview").classList.toggle("hidden",!fighting);$("#top").classList.toggle("hidden",fighting);$("#bot").classList.toggle("hidden",fighting);
+  const fighting=v.game==="fight",brawling=v.game==="brawl";$("#fightview").classList.toggle("hidden",!fighting);$("#brawlview").classList.toggle("hidden",!brawling);$("#top").classList.toggle("hidden",fighting||brawling);$("#bot").classList.toggle("hidden",fighting||brawling);
   $("#movepad").classList.toggle("hidden",!(fighting&&v.status==="active"&&v.state.phase==="fight"));
   $('#tabs [data-t="moves"]').classList.toggle("hidden",v.game!=="chess");if(v.game!=="chess"&&tab==="moves")setTab("chat");
-  if(v.game==="chess"){if(prevFen!==v.state.fen){sel=null;pend=null}renderChess(v,opp)}else if(v.game==="fight")renderFight(v,opp);else renderSnakes(v,opp);
+  if(v.game==="chess"){if(prevFen!==v.state.fen){sel=null;pend=null}renderChess(v,opp)}else if(v.game==="fight")renderFight(v,opp);else if(v.game==="brawl")renderBrawl(v,opp);else renderSnakes(v,opp);
   if(v.status==="waiting")setStatus("wait","Waiting for someone to join"+(v.locked?" (password protected)":""));
   else if(done){const w=v.winner===v.you,d=v.winner==="draw";setStatus(d?"draw":w?"win":"lose",`${d?"Draw":w?"You win":"You lose"} · ${v.result}`)}
-  else if(v.my_turn)setStatus("mine",v.game==="chess"?(v.state.check?"Check! Your move.":"Your move"):v.game==="fight"?(v.state.phase==="pick"?"Choose your fighter":"Choose your move"):"Your turn. Roll the dice.");
+  else if(v.my_turn)setStatus("mine",v.game==="chess"?(v.state.check?"Check! Your move.":"Your move"):v.game==="fight"?(v.state.phase==="pick"?"Choose your fighter":"Choose your move"):v.game==="brawl"?(v.state.phase==="pick"?"Choose your fighter":"Fight!"):"Your turn. Roll the dice.");
   else setStatus("wait",`Waiting for ${v.names[opp]||"your opponent"}…`+(v.opponent_online?"":" (away)"));
   if(v.game==="chess"&&active&&v.state.draw_offer===opp)setStatus("mine","They offer a draw. Accept below.");
   $("#dice").classList.toggle("hidden",v.game!=="snakes");$("#roll").disabled=!v.my_turn;
   $("#roll").textContent=active&&!v.my_turn?`Waiting for ${v.names[opp]||"opponent"}…`:"Roll the dice";
-  $("#status").classList.toggle("hidden",v.game==="snakes"&&active);
+  $("#status").classList.toggle("hidden",(v.game==="snakes"&&active)||(v.game==="brawl"&&active&&v.state.phase==="fight"));
   $("#drawbtn").classList.toggle("hidden",v.game!=="chess"||v.vs_bot);
   $("#drawbtn").textContent=v.game==="chess"&&v.state.draw_offer===opp?"Accept draw":"Offer draw";
   $("#drawbtn").disabled=!active||(v.game==="chess"&&v.state.draw_offer===v.you);
@@ -769,6 +778,20 @@ function renderFight(v,opp){
   icons(box)}
 $("#fightview").onclick=e=>{const b=e.target.closest("[data-pick]");if(b&&!b.disabled)act("/api/move",{move:{pick:b.dataset.pick}})};
 $("#movepad").onclick=e=>{const b=e.target.closest("[data-mv]");if(b&&!b.disabled)act("/api/move",{move:{move:b.dataset.mv}})};
+
+/* ---- heaven brawl: the engine loads only when a brawl room is opened ---- */
+let brawlP=null;
+function loadBrawl(){
+  return brawlP||(brawlP=new Promise((res,rej)=>{const el=document.createElement("script");el.src="/static/brawl.js?v="+encodeURIComponent(META.build);
+    el.onload=()=>res(window.Brawl);el.onerror=()=>{brawlP=null;rej(new Error("Could not load the fighting game"))};document.head.append(el)}))}
+function brawlCtx(){return{root:$("#brawlview"),api,act,sess:()=>({key:sess.key,token:sess.token}),toast,tone,buzz,icons,leave:leaveAndMaybeDelete,speed:inlineSpeed,meta:META.brawl,onWide:on=>document.body.classList.toggle("brawl-wide",!!on)}}
+function renderBrawl(v,opp){loadBrawl().then(B=>{if(V&&V.game==="brawl"&&sess)B.update(V,brawlCtx())}).catch(e=>toast(e.message))}
+async function inlineSpeed(el){  // the same measurements as the Speed tab, shown inside the connection check
+  el.innerHTML='<p class="note">Measuring…</p>';
+  try{const pings=[];for(let i=0;i<6;i++){const t=performance.now();await fetch("/api/ping",{cache:"no-store"});pings.push(performance.now()-t)}
+    let mbps=null;try{const kb=256,t=performance.now(),r=await fetch("/api/bench/blob?kb="+kb,{cache:"no-store"});await r.arrayBuffer();mbps=kb*1024*8/1e6/((performance.now()-t)/1000)}catch(e){}
+    const r=await api("/api/bench/run",{n:5,client_ping:median(pings)},60000);el.innerHTML=speedHTML(r,pings,mbps)}
+  catch(e){el.innerHTML=`<p class="err">${esc(e.message)}</p>`}}
 
 /* ---- store front: Play, Clans and Speed ---- */
 function showPane(p){

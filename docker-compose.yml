@@ -2,5 +2,5 @@ services:
   duels:
     build: .
     ports: ["5000:5000"]
-    env_file: .env          # your shadeDB credentials; copy .env.example first
+    env_file: .env          # run ./start.sh --write-env for the shared demo database, or use your own (see .env.example)
     restart: unless-stopped

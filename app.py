@@ -23,10 +23,11 @@ load_dotenv(BASE / ".env")
 
 import bench  # noqa: E402
 import clans  # noqa: E402
-from games import GAMES, fight, snakes  # noqa: E402
+import realtime  # noqa: E402
+from games import GAMES, brawl, fight, snakes  # noqa: E402
 from store import ShadeError, make_store  # noqa: E402
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 LINKS = dict(x="https://x.com/shade_ofc", shadedb="https://shadedb.duckdns.org")
 
 ONLINE_WINDOW, CLAIM_AFTER = 20, 45
@@ -43,10 +44,21 @@ def now():
     return int(time.time())
 
 
+DEMO_MARK = "# created by start.sh: shared demo database"
+
+
+def uses_demo_env():
+    """True when .env is the one start.sh wrote for the shared demo database."""
+    try:
+        return DEMO_MARK in (BASE / ".env").read_text()
+    except OSError:
+        return False
+
+
 def build_id():
     """Changes whenever the front end changes, so open pages can refresh themselves."""
-    st = (BASE / "static" / "index.html").stat()
-    return f"{int(st.st_mtime)}-{st.st_size}"
+    files = [(BASE / "static" / n).stat() for n in ("index.html", "brawl.js") if (BASE / "static" / n).exists()]
+    return "-".join(f"{int(s.st_mtime)}.{s.st_size}" for s in files)
 
 
 def room_lock(key):
@@ -129,7 +141,10 @@ def run_bot(room):
         if not room.get("bot") or not can_act(room, "p2"):
             return
         mod, st = GAMES[room["game"]], room["state"]
-        err, lines, end = mod.apply(st, "p2", mod.bot_move(st, "p2"), names(room))
+        move = mod.bot_move(st, "p2")
+        if move is None:  # this game's computer opponent plays in the browser
+            return
+        err, lines, end = mod.apply(st, "p2", move, names(room))
         if err:
             return
         record(room, lines, end)
@@ -157,8 +172,9 @@ def meta():
     return jsonify(games={k: dict(title=m.TITLE, blurb=m.BLURB) for k, m in GAMES.items()},
                    board=dict(ladders=snakes.LADDERS, snakes=snakes.SNAKES),
                    fight=dict(classes=fight.CLASSES, moves=fight.MOVES, rules=fight.RULES),
+                   brawl=dict(classes=brawl.CLASSES, rounds=brawl.ROUNDS_TO_WIN),
                    emotes=EMOTES, backend=store.name, online=store.online, build=build_id(),
-                   version=VERSION, links=LINKS)
+                   version=VERSION, links=LINKS, demo=bool(store.online and uses_demo_env()))
 
 
 @app.post("/api/create")
@@ -263,6 +279,8 @@ def move(room, slot, d):
     if err:
         return fail(err)
     record(room, lines, end)
+    if end and room["game"] == "brawl":
+        realtime.drop(store, room)
     run_bot(room)
 
 
@@ -277,6 +295,7 @@ def leave():
             return jsonify(ok=True, deleted=False)  # already gone
         name = room["players"][slot]["name"]
         if room.get("bot") or room.get("host_left") or (slot == "p1" and room.get("delete_on_leave", True)):
+            realtime.drop(store, room)
             store.delete(key)
             print(f"[room] {key} deleted when {name} left")
             return jsonify(ok=True, deleted=True)
@@ -349,6 +368,7 @@ def rematch(room, slot, d):
     if room.get("bot"):
         room["rematch"]["p2"] = True
     if all(room["rematch"].values()):
+        realtime.drop(store, room)
         room["first"] = other(room["first"])  # swap who starts / plays white
         room.update(status="active", winner=None, result=None, rematch={"p1": False, "p2": False},
                     state=GAMES[room["game"]].new_state(room["first"]), log=[dict(lines=["A new game begins."])])
@@ -399,6 +419,7 @@ def index():
 
 clans.register(app, lambda: store, room_lock, clean, now, fail, GAMES)
 bench.register(app, lambda: store, fail, now)
+realtime.register(app, lambda: store, find, fail, now)
 
 
 if __name__ == "__main__":

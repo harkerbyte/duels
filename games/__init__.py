@@ -1,3 +1,3 @@
-from . import chess, fight, snakes
+from . import brawl, chess, fight, snakes
 
-GAMES = {"chess": chess, "snakes": snakes, "fight": fight}
+GAMES = {"chess": chess, "snakes": snakes, "fight": fight, "brawl": brawl}

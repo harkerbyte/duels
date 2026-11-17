@@ -204,6 +204,19 @@ class Clans(Base):
         self.assertEqual(bad.status_code, 400)  # an invalid invite with no text has nothing to post
 
 
+class DemoNotice(Base):
+    def test_the_app_knows_when_it_is_on_the_demo_database(self):
+        old = A.BASE
+        try:
+            A.BASE = Path(self.tmp.name)
+            self.assertFalse(A.uses_demo_env())
+            (A.BASE / ".env").write_text("# created by start.sh: shared demo database\nPORT=5000\n")
+            self.assertTrue(A.uses_demo_env())
+            self.assertFalse(self.c.get("/api/meta").json["demo"])  # offline storage is never "the demo database"
+        finally:
+            A.BASE = old
+
+
 class SpeedTest(Base):
     def test_ping_and_blob(self):
         self.assertEqual(self.c.get("/api/ping").status_code, 200)

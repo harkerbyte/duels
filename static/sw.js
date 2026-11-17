@@ -1,7 +1,7 @@
 // Keeps the app shell available when the network drops. Game data (/api/) is never cached.
-const CACHE = "hd-shell-v2";
+const CACHE = "hd-shell-v3";
 const SHELL = ["/", "/static/fonts/inter-400.woff", "/static/fonts/inter-500.woff", "/static/fonts/inter-600.woff",
-  "/static/fonts/inter-700.woff", "/static/fonts/bricolage-700.woff", "/static/icons/icon-192.png"];
+  "/static/fonts/inter-700.woff", "/static/fonts/bricolage-700.woff", "/static/icons/icon-192.png", "/static/brawl.js"];
 self.addEventListener("install", e => {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));

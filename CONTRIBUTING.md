@@ -12,7 +12,7 @@ python -m unittest discover -s tests
 
 The tests need no network and no credentials. They use a fake shadeDB endpoint (`tests/fake_shadedb.py`) built from the public docs at https://shadedb.duckdns.org/llms.
 
-If you have a shadeDB instance, copy `.env.example` to `.env`, fill it in, and run `python scripts/check_db.py`. **Never commit `.env`.**
+`./start.sh` (no flag) uses the shared demo database, which is public: fine for trying things, not for anything private. If you have your own shadeDB instance, copy `.env.example` to `.env`, fill it in, run `python scripts/check_db.py`, and start with `./start.sh --custom`. **Never commit your own `.env`.**
 
 ## What a good pull request looks like
 
@@ -24,7 +24,7 @@ If you have a shadeDB instance, copy `.env.example` to `.env`, fill it in, and r
 
 ## Adding a game
 
-A game is one file in `games/` and one line in `games/__init__.py`. It provides `TITLE`, `BLURB`, `new_state`, `apply`, `bot_move` and `view_state`, plus `can_act` if both players move at once. The README has the details. You also need a front-end view in `static/index.html`. Rooms, chat, passwords, rematches, clans and storage come for free.
+A game is one file in `games/` and one line in `games/__init__.py`. Real-time games also send small updates through `realtime.py`, which writes one record per player and reads the other's. It provides `TITLE`, `BLURB`, `new_state`, `apply`, `bot_move` and `view_state`, plus `can_act` if both players move at once. The README has the details. You also need a front-end view in `static/index.html`. Rooms, chat, passwords, rematches, clans and storage come for free.
 
 ## Reporting bugs and ideas
 

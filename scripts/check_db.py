@@ -51,7 +51,7 @@ try:
     print("DELETE    ok")
     if unique and len(found) == 1:
         print("\nAll good. shadeDB is ready for Heaven Duels.")
-    else:
+    elif isinstance(unique, str):
         print("\nProblem: `room` is not a unique key in partition '%s'." % store.partition)
         print("Open the partition in the shadeDB dashboard, mark `room` as a unique field, and run this again.")
         print("Until then the game still works (it picks the newest copy), but duplicate records can pile up.")

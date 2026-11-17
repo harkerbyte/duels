@@ -27,7 +27,7 @@ URL="http://localhost:$PORT"
 [ -d .venv ] || python3 -m venv .venv
 # shellcheck disable=SC1091
 . .venv/bin/activate
-pip install -q -r requirements.txt
+pip install -r requirements.txt
 
 open_browser() {
   sleep 1.5

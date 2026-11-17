@@ -1,0 +1,39 @@
+name: Bug report
+description: Something is broken or behaves oddly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: game
+    attributes:
+      label: Where
+      options: [Chess, Snakes & Ladders, Heaven Fighters, Clans, Speed test, Lobby or rooms, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Storage
+      options: [shadeDB (online), Local file (offline)]
+  - type: input
+    id: env
+    attributes:
+      label: Device and browser
+      placeholder: Pixel 8, Chrome 130
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server log lines
+      description: Paste any `[room]`, `[clan]`, `[shadeDB]` or `[error]` lines. Remove tokens first.
+      render: text
+  - type: textarea
+    id: speed
+    attributes:
+      label: Speed test result
+      description: If it is about lag, run the Speed tab and paste the copied results.

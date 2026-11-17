@@ -1,0 +1,9 @@
+.git
+.github
+.env
+.venv
+.local-db.json
+__pycache__
+*.pyc
+docs
+tests

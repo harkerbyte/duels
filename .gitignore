@@ -1,0 +1,5 @@
+.env
+.venv/
+.local-db.json
+__pycache__/
+*.pyc

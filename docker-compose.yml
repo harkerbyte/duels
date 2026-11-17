@@ -1,0 +1,6 @@
+services:
+  duels:
+    build: .
+    ports: ["5000:5000"]
+    env_file: .env          # your shadeDB credentials; copy .env.example first
+    restart: unless-stopped
